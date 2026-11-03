@@ -1,0 +1,88 @@
+INCLUDES: WHAT EACH ONE IS FOR AND WHAT IS USED FROM IT
+=========================================================
+
+All four programs (primzahl.c, Pyramide.c, Ratten.c, Menue.c) use the same
+header files, except that some programs need fewer of them.
+
+---------------------------------------------------------
+<stdio.h>   (Standard Input/Output)
+---------------------------------------------------------
+Purpose: reading from the keyboard and writing to the screen.
+
+Used from it:
+  printf(...)   prints text and numbers to the screen.
+  fgets(...)    reads one whole line from the keyboard into a char array.
+                It never writes more than the buffer size, so it is safe
+                against overflow. This replaces scanf.
+  stdin         the "keyboard" stream that fgets reads from.
+  getchar()     reads one single character. Used only to throw away the
+                rest of a line that was too long for the buffer.
+  putchar(c)    prints one single character (used in Pyramide.c for
+                spaces, stars and newlines).
+  EOF           constant that means "no more input" (Ctrl+D / Ctrl+Z,
+                or end of a piped file).
+  NULL          returned by fgets when there is nothing left to read.
+
+Used in: all four files.
+
+---------------------------------------------------------
+<stdlib.h>   (Standard Library)
+---------------------------------------------------------
+Purpose: general helper functions, among them number conversion.
+
+Used from it:
+  strtol(text, &ende, 10)
+      Converts text to a number (long). Unlike scanf it tells us WHERE the
+      conversion stopped (the pointer "ende"). With that we can check that
+      the whole text was a number and nothing else followed.
+
+Used in: all four files (inside the function text_zu_int).
+
+---------------------------------------------------------
+<string.h>   (String functions)
+---------------------------------------------------------
+Purpose: working with text (char arrays).
+
+Used from it:
+  strcspn(text, "\n")
+      Returns the position of the first '\n' in the text (or the length
+      of the text if there is none). Used to remove the newline that fgets
+      leaves at the end of the line, and to detect lines that were too long.
+  strcmp(a, b)
+      Compares two strings. Returns 0 if they are equal. Used to check if
+      the user typed "exit".
+
+Used in: all four files for strcspn; strcmp only in Ratten.c and Menue.c
+(primzahl.c and Pyramide.c include the header only for strcspn).
+
+---------------------------------------------------------
+<errno.h>   (Error numbers)
+---------------------------------------------------------
+Purpose: lets library functions report what went wrong.
+
+Used from it:
+  errno    a global error variable. We set it to 0 before calling strtol
+           and look at it afterwards.
+  ERANGE   the error value strtol sets if the number is too big or too
+           small to fit into a long.
+
+Used in: all four files (inside text_zu_int).
+
+---------------------------------------------------------
+<limits.h>   (Limits of number types)
+---------------------------------------------------------
+Purpose: tells us the smallest and largest value of each integer type.
+
+Used from it:
+  INT_MAX   largest possible int.
+  INT_MIN   smallest possible int.
+  strtol returns a long, which can be bigger than an int on some systems.
+  We compare against these two constants before converting to int.
+
+Used in: all four files (inside text_zu_int).
+
+---------------------------------------------------------
+Removed
+---------------------------------------------------------
+scanf / sscanf (both from <stdio.h>) are no longer used anywhere.
+They were replaced by fgets (read the line) + strtol (convert it).

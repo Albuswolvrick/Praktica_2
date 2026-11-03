@@ -1,0 +1,253 @@
+DETAILED EXPLANATION OF THE CODE
+=================================
+
+The project has four independent programs:
+  primzahl.c   prints all prime numbers up to N
+  Pyramide.c   prints a star pyramid
+  Ratten.c     number guessing game
+  Menue.c      menu that combines the guessing game and the primes
+
+Each file can be compiled on its own, for example:
+  gcc -Wall -Wextra -o primzahl primzahl.c
+
+(The code also contains the folder "Praktica funn" in the repository.
+ I could not open that folder, so it is not part of this work.)
+
+
+PART 1: WHAT CHANGED (scanf removed)
+------------------------------------
+Before:   fgets(...) followed by sscanf(eingabe, "%d %c", ...)
+Now:      fgets(...) followed by strtol(...)
+
+Why? sscanf works, but its error handling is weak: for example it cannot
+tell you "number too big", and the trick with the extra "%c" to detect
+garbage after the number is hard to read. strtol is made for exactly this
+job and allows clear checks.
+
+The same two helper functions are now used in every file:
+
+  lese_zeile(puffer, groesse)   -> read a line
+  text_zu_int(text, &wert)      -> convert text to int, with checks
+
+Other small changes:
+  - strcmp(eingabe, "exit") replaces the long if with
+    eingabe[0]=='e' && eingabe[1]=='x' ... (shorter and easier to read).
+  - The prime test uses  teiler <= kandidat / teiler  instead of
+    teiler * teiler <= kandidat. It means the same, but cannot overflow
+    when N is close to the largest int.
+
+
+PART 2: THE HELPER FUNCTIONS
+----------------------------
+
+--- lese_zeile ---
+
+static int lese_zeile(char *puffer, size_t groesse)
+{
+    size_t laenge;
+    int c;
+
+    if (fgets(puffer, (int) groesse, stdin) == NULL) {
+        return 0;
+    }
+    laenge = strcspn(puffer, "\n");
+    if (puffer[laenge] == '\n') {
+        puffer[laenge] = '\0';
+    } else {
+        while ((c = getchar()) != '\n' && c != EOF) {
+        }
+    }
+    return 1;
+}
+
+"static" means the function is only visible inside this file.
+It returns 1 for success and 0 if the input has ended.
+
+Step by step:
+ 1. fgets reads at most groesse-1 characters or up to the end of the line,
+    whichever comes first, and adds a '\0' at the end. If there is no
+    input left it returns NULL, and we return 0.
+ 2. strcspn finds the position of the '\n'. If the user typed "abc" and
+    pressed Enter, the buffer holds "abc\n" and laenge is 3.
+ 3. If the character at that position really is '\n', we overwrite it with
+    '\0'. Now the buffer holds the clean text "abc".
+ 4. If there is NO '\n', the line was longer than the buffer (64 chars).
+    The rest of the line is still waiting in the input. If we left it
+    there, the next fgets would read it by mistake. The while loop reads
+    and throws away characters until the end of the line (or EOF).
+    The loop body is empty on purpose: the work happens in the condition.
+
+--- text_zu_int ---
+
+static int text_zu_int(const char *text, int *wert)
+{
+    char *ende;
+    long v;
+
+    errno = 0;
+    v = strtol(text, &ende, 10);
+    if (ende == text)                        return 0;
+    if (errno == ERANGE || v > INT_MAX || v < INT_MIN) return 0;
+    while (*ende == ' ' || *ende == '\t')    ende++;
+    if (*ende != '\0')                       return 0;
+    *wert = (int) v;
+    return 1;
+}
+
+Returns 1 if the text is exactly one valid whole number, otherwise 0.
+The result is given back through the pointer "wert" (that is how a C
+function can return a second value).
+
+Step by step:
+ 1. errno = 0: strtol only SETS errno on error, it never clears it. So we
+    clear it first.
+ 2. strtol(text, &ende, 10) reads a number in base 10. It skips leading
+    spaces, accepts a + or - sign, and stops at the first character that
+    does not belong to the number. "ende" is then set to point to that
+    character.
+ 3. ende == text means nothing was converted (for example "abc" or an
+    empty line) -> invalid.
+ 4. errno == ERANGE means the number was too large for a long. The checks
+    against INT_MAX / INT_MIN catch numbers that fit a long but not an int
+    (relevant on systems where long is bigger than int).
+ 5. The while loop skips spaces/tabs after the number, so "42  " is still
+    accepted.
+ 6. If the next character is not the end of the string, there is garbage
+    after the number ("42abc", "4 2", "3.5") -> invalid. This replaces the
+    old "%d %c" trick.
+ 7. Everything fine: store the number and return 1.
+
+Examples:
+   "42"       -> valid, 42
+   "  7 "     -> valid, 7
+   "-5"       -> valid, -5
+   "abc"      -> invalid (step 3)
+   "12abc"    -> invalid (step 6)
+   "3.5"      -> invalid (step 6)
+   ""         -> invalid (step 3)
+   "99999999999999999999" -> invalid (step 4)
+
+
+PART 3: primzahl.c
+------------------
+Variables:
+  eingabe[64]   buffer for the typed line
+  n             the upper limit typed by the user
+  kandidat      the number currently tested
+  teiler        the divisor currently tried
+  ist_prim      flag: 1 = still looks prime, 0 = proven not prime
+
+Flow:
+ 1. Print "N eingeben: " and read the line. If reading fails or the text
+    is not a number, print "Ungueltige Eingabe" and end with return 1
+    (a non-zero return value signals an error to the system).
+ 2. Outer loop: kandidat goes from 2 to n (1 and below are not prime).
+ 3. For each candidate assume it is prime (ist_prim = 1).
+ 4. Inner loop: try divisors starting at 2. If kandidat % teiler == 0 the
+    number divides evenly, so it is not prime: set the flag to 0 and break.
+ 5. Why does the inner loop stop at the square root? If a number has a
+    divisor larger than its square root, the matching partner divisor is
+    smaller than the square root. So if there is no small divisor, there is
+    no big one either. teiler <= kandidat / teiler is the same as
+    teiler*teiler <= kandidat, written so that it cannot overflow.
+ 6. If the flag is still 1 the number is printed followed by a space.
+ 7. After the loop a newline is printed.
+
+Example, N = 10: 2 prime, 3 prime, 4 (2 divides) no, 5 prime, 6 no, 7 prime,
+8 no, 9 (3 divides) no, 10 no. Output: "2 3 5 7".
+
+
+PART 4: Pyramide.c
+------------------
+Variables:
+  eingabe[64]   input buffer
+  h             height of the pyramid
+  zeile         current row (1 to h)
+  i             counter for the inner loops
+
+Input loop (do ... while):
+ - Asks for the height. If the input is not a number or not between 1 and
+   40, it prints an error and sets h = 0. The loop condition (h == 0)
+   then asks again. h = 0 is used as the "not valid yet" marker.
+ - If the input ends (EOF) the program stops with return 1, otherwise it
+   would ask forever.
+
+Drawing:
+ - For every row, first h - zeile spaces are printed, then 2*zeile - 1
+   stars, then a newline.
+ - Row 1 has 1 star, row 2 has 3, row 3 has 5, ... (always odd numbers),
+   and the spaces on the left shrink by one per row, which centers the
+   pyramid.
+
+Example, h = 3:
+     *
+    ***
+   *****
+(2 spaces + 1 star, 1 space + 3 stars, 0 spaces + 5 stars)
+
+
+PART 5: Ratten.c (guessing game)
+--------------------------------
+Random number without rand():
+   zufall = zufall * 1103515245u + 12345u;
+   ziel   = (int) ((zufall / 65536u) % 100u) + 1;
+
+This is a "linear congruential generator" (LCG). Each new value is
+calculated from the old one with a multiplication and an addition. The
+unsigned type wraps around automatically when it gets too big, which is
+well defined in C for unsigned numbers. Dividing by 65536 drops the weak
+low bits, % 100 gives 0..99, + 1 gives 1..100.
+Because the start value (12345) is fixed, the target number is the same
+every time you start the program (37 in the current code). Change 12345u
+to get another number.
+
+Main loop (while (1), left with break):
+ 1. Print the prompt and read a line. On EOF, leave the loop.
+ 2. If the text equals "exit" (strcmp == 0): print the secret number and
+    leave the loop.
+ 3. If the text is not a valid number: print an error and "continue"
+    (jump back to the start of the loop without counting a try).
+ 4. If the number is outside 1-100: print a message and continue
+    (also not counted).
+ 5. A valid guess: versuche++.
+ 6. Compare with the target: too small / too big / correct. When correct,
+    print the number of tries and leave the loop.
+
+
+PART 6: Menue.c
+---------------
+Combines both programs in a menu.
+
+Variables:
+  auswahl     the menu choice
+  zahl, ziel, versuche    for the guessing game
+  n, kandidat, teiler, ist_prim     for the primes
+  zufall      LCG state. It lives in main and is changed on every game,
+              so each new game gets a different target number.
+
+Structure: do { ... } while (auswahl != 3);
+ - The menu is printed, a line is read, and converted with text_zu_int.
+   If that fails, auswahl = 0, which falls into "default" (invalid).
+ - If input ends (EOF) the loop is left with break.
+ - switch (auswahl):
+     case 1  guessing game: advance the LCG, compute the target, then run
+             the same loop as in Ratten.c. "exit" only leaves the game
+             loop and returns to the menu.
+     case 2  asks for N and prints the primes, same code as primzahl.c,
+             but on invalid input it only prints an error and goes back to
+             the menu (break) instead of ending the program.
+     case 3  prints "Auf Wiedersehen!"; the loop condition then ends the
+             program.
+     default prints "Ungueltige Auswahl".
+ - Every case ends with "break;" because otherwise C would continue into
+   the next case ("fall-through").
+ - The inner "break" inside the while loop of case 1 only leaves that
+   while loop, and the "break" after it leaves the switch.
+
+
+PART 7: HOW TO COMPILE AND RUN
+------------------------------
+   gcc -Wall -Wextra -pedantic -o menue Menue.c
+   ./menue
+
+The same for the other files. All four compile without warnings.

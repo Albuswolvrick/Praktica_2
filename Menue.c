@@ -1,9 +1,53 @@
-#include <stdio.h>
+#include <stdio.h>   /* printf, fgets, stdin, getchar */
+#include <stdlib.h>  /* strtol */
+#include <string.h>  /* strcspn, strcmp */
+#include <errno.h>   /* errno, ERANGE */
+#include <limits.h>  /* INT_MAX, INT_MIN */
+
+static int lese_zeile(char *puffer, size_t groesse)
+{
+    size_t laenge;
+    int c;
+
+    if (fgets(puffer, (int) groesse, stdin) == NULL) {
+        return 0;
+    }
+    laenge = strcspn(puffer, "\n");
+    if (puffer[laenge] == '\n') {
+        puffer[laenge] = '\0';
+    } else {
+        while ((c = getchar()) != '\n' && c != EOF) {
+        }
+    }
+    return 1;
+}
+
+static int text_zu_int(const char *text, int *wert)
+{
+    char *ende;
+    long v;
+
+    errno = 0;
+    v = strtol(text, &ende, 10);
+    if (ende == text) {
+        return 0;
+    }
+    if (errno == ERANGE || v > INT_MAX || v < INT_MIN) {
+        return 0;
+    }
+    while (*ende == ' ' || *ende == '\t') {
+        ende++;
+    }
+    if (*ende != '\0') {
+        return 0;
+    }
+    *wert = (int) v;
+    return 1;
+}
 
 int main(void)
 {
     char eingabe[64];
-    char rest;
     int auswahl = 0;
     int zahl, ziel, versuche;
     int n, kandidat, teiler, ist_prim;
@@ -16,11 +60,11 @@ int main(void)
         printf("3) Beenden\n");
         printf("Auswahl: ");
 
-        if (fgets(eingabe, sizeof(eingabe), stdin) == NULL) {
+        if (!lese_zeile(eingabe, sizeof(eingabe))) {
             break;
         }
-        if (sscanf(eingabe, "%d %c", &auswahl, &rest) != 1) {
-            auswahl = 0;                        /* not a number -> invalid */
+        if (!text_zu_int(eingabe, &auswahl)) {
+            auswahl = 0;                /* not a number -> invalid */
         }
 
         switch (auswahl) {
@@ -31,14 +75,13 @@ int main(void)
             printf("Mit \"exit\" kehrst du zum Menue zurueck.\n");
             while (1) {
                 printf("Rate (1-100): ");
-                if (fgets(eingabe, sizeof(eingabe), stdin) == NULL) {
+                if (!lese_zeile(eingabe, sizeof(eingabe))) {
                     break;
                 }
-                if (eingabe[0] == 'e' && eingabe[1] == 'x' && eingabe[2] == 'i' &&
-                    eingabe[3] == 't' && (eingabe[4] == '\n' || eingabe[4] == '\0')) {
+                if (strcmp(eingabe, "exit") == 0) {
                     break;
                 }
-                if (sscanf(eingabe, "%d %c", &zahl, &rest) != 1) {
+                if (!text_zu_int(eingabe, &zahl)) {
                     printf("Ungueltige Eingabe\n");
                     continue;
                 }
@@ -60,14 +103,13 @@ int main(void)
 
         case 2:
             printf("N eingeben: ");
-            if (fgets(eingabe, sizeof(eingabe), stdin) == NULL ||
-                sscanf(eingabe, "%d", &n) != 1) {
+            if (!lese_zeile(eingabe, sizeof(eingabe)) || !text_zu_int(eingabe, &n)) {
                 printf("Ungueltige Eingabe\n");
                 break;
             }
             for (kandidat = 2; kandidat <= n; kandidat++) {
                 ist_prim = 1;
-                for (teiler = 2; teiler * teiler <= kandidat; teiler++) {
+                for (teiler = 2; teiler <= kandidat / teiler; teiler++) {
                     if (kandidat % teiler == 0) {
                         ist_prim = 0;
                         break;
@@ -92,6 +134,3 @@ int main(void)
 
     return 0;
 }
-//
-// Created by pierre on 03.11.26.
-//
