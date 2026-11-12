@@ -48,6 +48,7 @@ void primzahlen_ausgeben(void)
     int kandidat;       /* number currently tested for primality */
     int teiler;         /* possible divisor of the candidate */
     int ist_prim;       /* flag: 1 = candidate is prime, 0 = it is not */
+    int count =0;       /*counter*/
 
     printf("N eingeben: ");
 
@@ -71,7 +72,13 @@ void primzahlen_ausgeben(void)
         }
 
         if (ist_prim) {
-            printf("%d ", kandidat);
+            printf("%d ,", kandidat);
+           count++;
+            if (count == 30) {
+                printf("\n");
+                count = 0;
+            }
+
         }
     }
     printf("\n");
