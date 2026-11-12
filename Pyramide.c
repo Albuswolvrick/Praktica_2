@@ -1,74 +1,84 @@
-#include <stdio.h>   /* printf, fgets, stdin, getchar, putchar */
-#include <stdlib.h>  /* strtol */
-#include <string.h>  /* strcspn */
-#include <errno.h>   /* errno, ERANGE */
-#include <limits.h>  /* INT_MAX, INT_MIN */
+/*
+ * Pyramide.c
+ * Reads a height (1-40) and prints a centered pyramid made of '*'.
+ * Used by Menue.c (function pyramide_zeichnen) and runnable on its own.
+ * Created by pierre on 03.11.26.
+ */
 
-static int lese_zeile(char *puffer, size_t groesse)
+#include <stdio.h>
+#include <stdlib.h>   /* strtol */
+#include <errno.h>    /* errno, ERANGE */
+#include <limits.h>   /* INT_MIN, INT_MAX */
+#include "Pyramide.h"
+
+/*
+ * Converts a text to an int (replacement for sscanf).
+ * Returns 1 on success, 0 if the text is not exactly one valid integer.
+ * Leading and trailing whitespace (e.g. the '\n' from fgets) is allowed.
+ */
+static int parse_int(const char *text, int *wert)
 {
-    size_t laenge;
-    int c;
-
-    if (fgets(puffer, (int) groesse, stdin) == NULL) {
-        return 0;
-    }
-    laenge = strcspn(puffer, "\n");
-    if (puffer[laenge] == '\n') {
-        puffer[laenge] = '\0';
-    } else {
-        while ((c = getchar()) != '\n' && c != EOF) {
-        }
-    }
-    return 1;
-}
-
-static int text_zu_int(const char *text, int *wert)
-{
-    char *ende;
+    char *ende;   /* first character strtol could not convert */
     long v;
 
     errno = 0;
     v = strtol(text, &ende, 10);
-    if (ende == text) {
+
+    if (ende == text) {                          /* no digits found */
         return 0;
     }
-    if (errno == ERANGE || v > INT_MAX || v < INT_MIN) {
+    if (errno == ERANGE || v < INT_MIN || v > INT_MAX) {   /* out of int range */
         return 0;
     }
-    while (*ende == ' ' || *ende == '\t') {
-        ende++;
+    while (*ende == ' ' || *ende == '\t' || *ende == '\n' || *ende == '\r') {
+        ende++;                                  /* skip trailing whitespace */
     }
-    if (*ende != '\0') {
+    if (*ende != '\0') {                         /* extra characters after the number */
         return 0;
     }
+
     *wert = (int) v;
     return 1;
 }
 
-int main(void)
+void pyramide_zeichnen(void)
 {
-    char eingabe[64];
-    int h = 0, zeile, i;
+    char eingabe[64];   /* buffer for one line of user input */
+    int h = 0;          /* pyramid height; 0 means "no valid value yet" */
+    int zeile;          /* current row, counted from 1 (top) to h (bottom) */
+    int i;              /* loop counter for spaces and stars */
 
+    /* keep asking until the user enters a valid height */
     do {
         printf("Hoehe (1-40): ");
-        if (!lese_zeile(eingabe, sizeof(eingabe))) {
-            return 1;
+        if (fgets(eingabe, sizeof(eingabe), stdin) == NULL) {
+            return;     /* end of input (e.g. Ctrl+D) -> abort */
         }
-        if (!text_zu_int(eingabe, &h) || h < 1 || h > 40) {
+        if (!parse_int(eingabe, &h) || h < 1 || h > 40) {
             printf("Ungueltig: Hoehe muss zwischen 1 und 40 liegen.\n");
-            h = 0;
+            h = 0;      /* reset so the loop asks again */
         }
     } while (h == 0);
 
+    /* print the pyramid row by row */
     for (zeile = 1; zeile <= h; zeile++) {
-        for (i = 0; i < h - zeile; i++) {      /* spaces */
+        /* leading spaces: fewer in every row, so the pyramid is centered */
+        for (i = 0; i < h - zeile; i++) {
             putchar(' ');
         }
-        for (i = 0; i < 2 * zeile - 1; i++) {  /* stars */
+        /* stars: 1, 3, 5, ... -> row n has 2*n - 1 stars */
+        for (i = 0; i < 2 * zeile - 1; i++) {
             putchar('*');
         }
-        putchar('\n');
+        putchar('\n');   /* end of this row */
     }
+}
+
+/* main only exists when the file is compiled alone (not together with Menue.c) */
+#ifndef AS_LIBRARY
+int main(void)
+{
+    pyramide_zeichnen();
     return 0;
 }
+#endif
